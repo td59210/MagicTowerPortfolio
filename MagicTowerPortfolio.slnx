@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="MagicTowerPortfolio.vcxproj" />
+  <Project Path="MagicTowerPortfolio.vcxproj" Id="a2b9eb69-4d9d-437b-a292-8f8c7f1d85d8" />
 </Solution>
