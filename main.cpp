@@ -159,17 +159,19 @@ public:
 
 		for (int i = 0; i < rows; i++) { //moves player as @
 			for (int j = 0; j < cols; j++) {
-				if (i == player.getRow() && j == player.getCol())
+				if (i == player.getRow() && j == player.getCol()) {
 					cout << "@";
-				else
+				}
+				else {
 					cout << grid[i][j];
+				}
 			}
 			cout << endl;
 		}
 		/*
 		//display stats
 		cout << "\nHealth: " << player.getHealth();
-		cout << "\nStrength: " << player.getStrength();   //->this ended up double printing, prefer other way
+		cout << "\nStrength: " << player.getStrength();   
 		cout << "\nDefense: " << player.getDefense();
 		cout << "\nKeys: " << player.getKeys();
 		*/
@@ -184,30 +186,34 @@ public:
 		int newRow = player.getRow(); //initialize new pos
 		int newCol = player.getCol();
 
-		if (dir == 'U' || dir == 'u')
+		if (dir == 'U' || dir == 'u') {
 			newRow--;
-		else if (dir == 'D' || dir == 'd')
+		}
+		else if (dir == 'D' || dir == 'd') {
 			newRow++;
-		else if (dir == 'L' || dir == 'l')
+		}
+		else if (dir == 'L' || dir == 'l') {
 			newCol--;
-		else if (dir == 'R' || dir == 'r')
+		}
+		else if (dir == 'R' || dir == 'r') {
 			newCol++;
+		}
 
 		//check bounds
-		if (!inBounds(newRow, newCol))
+		if (!inBounds(newRow, newCol)) {
 			return false;
+		}
 
 		//checking spaces and outputting info
 		char tile = grid[newRow][newCol];
 
 		if (tile == '#') {
-			cout << "You've hit a wall!\n";
+			cout << "\nYou've hit a wall!\n";
 			return false;
 		}
 
 		if (tile == 'K') {
-			cout << "\n";
-			cout << "You've found a key!\n";
+			cout << "\nYou've found a key!\n";
 			player.addKey();
 			grid[newRow][newCol] = '.'; //replaces item with empty space or .
 			cout << "\n";
@@ -216,22 +222,19 @@ public:
 
 		if (tile == 'D') { //door
 			if (player.useKey()) {
-				cout << "\n";
-				cout << "You've unlocked the door!\n";
+				cout << "\nYou've unlocked the door!\n";
 				grid[newRow][newCol] = '.';
 				cout << "\n";
 				player.printStats();
 			}
 			else {
-				cout << "\n";
-				cout << "You need a key.\n";
+				cout << "\nYou need a key.\n";
 				return false;
 			}
 		}
 
 		if (tile == 'H') {
-			cout << "\n";
-			cout << "You've found a health potion!\n";
+			cout << "\nYou've found a health potion!\n";
 			player.addHealth(10);
 			grid[newRow][newCol] = '.';
 			cout << "\n";
@@ -240,8 +243,7 @@ public:
 		}
 
 		if (tile == 'S') {
-			cout << "\n";
-			cout << "You've found a strength potion!\n";
+			cout << "\nYou've found a strength potion!\n";
 			player.addStrength(5);
 			grid[newRow][newCol] = '.';
 			cout << "\n";
@@ -249,8 +251,7 @@ public:
 		}
 
 		if (tile == 'F') {
-			cout << "\n";
-			cout << "You've found a defense potion!\n";
+			cout << "\nYou've found a defense potion!\n";
 			player.addDefense(5);
 			grid[newRow][newCol] = '.';
 			cout << "\n";
@@ -258,38 +259,36 @@ public:
 		}
 
 		if (tile == 'E') {
-			cout << "\n";
-			cout << "An enemy appeared! Your fight will now begin!\n";
+			cout << "\nAn enemy appeared! Your fight will now begin!\n";
 			Enemy enemy;
 
 			//fight
 			while (player.isAlive() && enemy.isAlive()) {
 				int dmgp = player.getStrength() - enemy.getDefense(); //calc damage enemy wil take
-				if (dmgp < 0) 
+				if (dmgp < 0) {
 					dmgp = 0; //no negative damage
-				enemy.takeDamage(dmgp); 
+				}
+					enemy.takeDamage(dmgp);
 
 				if (enemy.isAlive()) {
 					int dmge = enemy.getStrength() - player.getDefense();
-					if (dmge < 0)
+					if (dmge < 0) {
 						dmge = 0;
-					player.takeDamage(dmge);
+					}
+						player.takeDamage(dmge);
 				}
 
 				if (!player.isAlive()) {
-					cout << "\n";
-					cout << "You were defeated! The game will end.\n";
+					cout << "\nYou were defeated! The game will end.\n";
 					return true; //end game
 				}
-				cout << "\n";
-				cout << "You defeated the enemy! You may move on.\n"; //this prints multiple time--> fix if time
+				cout << "\nYou defeated the enemy! You may move on.\n"; //this prints multiple time--> fix if time
 			}
 			grid[newRow][newCol] = '.';
 		}
 		
 		if (tile == 'G') {
-			cout << "\n";
-			cout << "You've reached the goal! You win!\n";
+			cout << "\nYou've reached the goal! You win!\n";
 			player.setPosition(newRow, newCol);
 			return true; //win
 		}
