@@ -168,13 +168,13 @@ public:
 			}
 			cout << endl;
 		}
-		/*
+	
 		//display stats
 		cout << "\nHealth: " << player.getHealth();
 		cout << "\nStrength: " << player.getStrength();   
 		cout << "\nDefense: " << player.getDefense();
 		cout << "\nKeys: " << player.getKeys();
-		*/
+	
 	}
 	//check bounds
 	bool inBounds(int r, int c) {
@@ -186,16 +186,16 @@ public:
 		int newRow = player.getRow(); //initialize new pos
 		int newCol = player.getCol();
 
-		if (dir == 'U' || dir == 'u') {
+		if (dir == 'U') {
 			newRow--;
 		}
-		else if (dir == 'D' || dir == 'd') {
+		else if (dir == 'D') {
 			newRow++;
 		}
-		else if (dir == 'L' || dir == 'l') {
+		else if (dir == 'L') {
 			newCol--;
 		}
-		else if (dir == 'R' || dir == 'r') {
+		else if (dir == 'R') {
 			newCol++;
 		}
 
@@ -282,7 +282,10 @@ public:
 					cout << "\nYou were defeated! The game will end.\n";
 					return true; //end game
 				}
-				cout << "\nYou defeated the enemy! You may move on.\n"; //this prints multiple time--> fix if time
+
+				if (player.isAlive()) {
+					cout << "\nYou defeated the enemy! You may move on.\n";
+				}
 			}
 			grid[newRow][newCol] = '.';
 		}
@@ -327,11 +330,14 @@ public:
 class Game {
 private:
 	vector<vector<string>> dungeons;
+	vector<string> dungeonNames;
 
 public:
 	
 	Game() {
 		dungeons = Dungeon::getPreDungeon();
+		dungeonNames.push_back("Level 1");
+		dungeonNames.push_back("Level 2");
 	}
 
 	//level editor
@@ -352,22 +358,97 @@ public:
 		cout << "E = Enemy\n";
 		cout << "G = Goal (REQUIRED)\n\n";
 
-		cout << "Limit rows and columns to 20.\n"; //add limit to check if time
-		cout << "Enter number of rows: ";
-		cin >> rows;
-		cout << "Enter number of columns: ";
-		cin >> cols;
+		cout << "Maximum size for dungeon is 10x10.\n";
 
-		vector<string> newGrid(rows);
-
-		cout << "\nEnter each row exactly " << cols << " characters long:\n";
-
-		for (int i = 0; i < rows; i++) {
-			cin >> newGrid[i];
+		cout << "Enter rows (1-10): \n";
+		while (!(cin >> rows) || rows < 1 || rows > 10) {
+			cout << "Invalid. Enter 1-10: ";
+			cin.clear();
+			cin.ignore(10000, '\n');
 		}
 
-		dungeons.push_back(newGrid);
-		cout << "Dungeon created!\n";
+		cout << "Enter columns (1-10): \n";
+		while (!(cin >> cols) || cols < 1 || cols > 10) {
+			cout << "Invalid. Enter 1-10: ";
+			cin.clear();
+			cin.ignore(10000, '\n');
+		}
+
+		vector<string> newGrid(rows, string(cols, '.'));
+
+		bool editing = true;
+
+		while (editing) {
+			cout << "\nCurrent Dungeon looks like: \n";
+
+			for (int r = 0; r < rows; r++) {
+				for (int c = 0; c < cols; c++) {
+					cout << newGrid[r][c];
+				}
+				cout << endl;
+			}
+
+			cout << "\n1. Place object.\n";
+			cout << "2. Save current dungeon. \n";
+			cout << "Your choice: \n";
+
+			int choice;
+			while (!(cin >> choice) || (choice != 1 && choice != 2)) {
+				cout << "Invalid choice. Enter 1 or 2: ";
+				cin.clear();
+				cin.ignore(10000, '\n');
+			}
+
+			if (choice == 1) {
+				cout << "\nEnter object character: ";
+				char obj;
+				cin >> obj;
+
+				//validate only accepted objs are added
+				if (obj != '#' && obj != '.' && obj != '@' &&
+					obj != 'K' && obj != 'D' &&
+					obj != 'H' && obj != 'S' &&
+					obj != 'F' && obj != 'E' &&
+					obj != 'G') {
+
+					cout << "Invalid object type.\n";
+					continue; 
+				}
+
+				int r, c;
+
+				cout << "Enter row (0-" << rows - 1 << "): ";
+				while (!(cin >> r) || r < 0 || r >= rows) {
+					cout << "Invalid row. Try again: ";
+					cin.clear();
+					cin.ignore(10000, '\n');
+				}
+
+				cout << "Enter col (0-" << cols - 1 << "): ";
+				while (!(cin >> c) || c < 0 || c >= cols) {
+					cout << "Invalid col. Try again: ";
+					cin.clear();
+					cin.ignore(10000, '\n');
+				}
+
+				newGrid[r][c] = obj;
+			}
+			else if (choice == 2) {
+				string name;
+				cout << "Enter dungeon name: ";
+				cin >> name;
+
+				dungeons.push_back(newGrid);
+				dungeonNames.push_back(name);
+
+				cout << "Dungeon saved!\n";
+				editing = false;
+			}
+			else {
+				cout << "Invalid choice.\n";
+			}
+		}
+	
 	}
 
 	void run() {
@@ -379,26 +460,48 @@ public:
 
 			int choice;
 			cout << "Your choice: ";
-			cin >> choice;
+
+			while (!(cin >> choice) || choice < 1 || choice > 3) {
+				cout << "Invalid choice. Enter 1-3: ";
+				cin.clear();
+				cin.ignore(10000, '\n');
+			}
 
 			if (choice == 1) {
 
 				cout << "\nChoose a dungeon:\n";
-				for (int i = 0; i < dungeons.size(); i++) {
-					cout << i + 1 << ") Dungeon " << i + 1 << endl;
+				for (int i = 0; i < dungeons.size() && i < dungeonNames.size(); i++) {
+					cout << i + 1 << ") " << dungeonNames[i] << endl;
 				}
 
-				int selection;
+				string selection;
 				cin >> selection;
-				selection--;
+				
+				int input = -1;
 
-				if (selection < 0 || selection >= dungeons.size()) {
+				//dungeon name check
+				for (int i = 0; i < dungeonNames.size(); i++) {
+					if (selection == dungeonNames[i]) {
+						input = i;
+						break;
+					}
+				}
+
+				//number check
+				for (int i = 0; i < dungeons.size(); i++) {
+					if (selection == to_string(i + 1)) {
+						input = i;
+						break;
+					}
+				}
+
+				if (input == -1) {
 					cout << "Invalid selection.\n";
 					continue;
 				}
 
 				Player player;
-				Dungeon dungeon(dungeons[selection]);
+				Dungeon dungeon(dungeons[input]);
 
 				dungeon.findStart(player);
 
@@ -407,11 +510,31 @@ public:
 				while (!gameOver && player.isAlive()) {
 					dungeon.print(player);
 
-					char move;
+					string move; //take in words
 					cout << "\nMove (U/D/L/R): ";
 					cin >> move;
 
-					gameOver = dungeon.movePlayer(player, move);
+					char dir; //will sue to set strings to match directions
+
+					//loops for movement
+					if (move == "U" || move == "u" || move == "up" || move == "UP" || move == "Up") {
+						dir = 'U';
+					}
+					else if (move == "D" || move == "d" || move == "down" || move == "DOWN" || move == "Down") {
+						dir = 'D';
+					}
+					else if (move == "R" || move == "r" || move == "right" || move == "RIGHT" || move == "Right") {
+						dir = 'R';
+					}
+					else if (move == "L" || move == "l" || move == "left" || move == "LEFT" || move == "Left") {
+						dir = 'L';
+					}
+					else {
+						cout << "Invalid move.\n";
+						continue;
+					}
+
+					gameOver = dungeon.movePlayer(player, dir);
 				}
 
 				if (!player.isAlive()) {
