@@ -2,6 +2,9 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <cstdlib>
+#include <map>
+
 
 using namespace std;
 
@@ -11,7 +14,6 @@ private:
 	int strength;
 	int health;
 	int defense;
-	//int keys;
 	int blueKeys;
 	int redKeys;
 	int row;
@@ -116,6 +118,11 @@ private:
 	int defense;
 
 public:
+	Enemy() {
+		health = 0;
+		strength = 0;
+		defense = 0;
+	}
 	Enemy(int h, int s, int d) {
 		health = h;
 		strength = s;
@@ -184,15 +191,25 @@ public:
 
 class Dungeon {
 private:
-	vector<string> grid; //vector<vector<char>> grid;
+	vector<string> grid;
 	int rows;
 	int cols;
+
+	map<pair<int, int>, Enemy> enemies;
+	map<pair<int, int>, int> healthPotions;
+	map<pair<int, int>, int> strengthPotions;
+	map<pair<int, int>, int> defensePotions;
+
 
 public:
 	Dungeon(vector<string> levelGrid) { //takes in chosen grid
 		grid = levelGrid;
 		rows = grid.size();
-		cols = grid[0].size();
+		cols = (rows > 0) ? grid[0].size() : 0;
+	}
+
+	vector<string> getGrid() {
+		return grid;
 	}
 
 	//getter for tile inspection
@@ -201,6 +218,59 @@ public:
 			return grid[r][c];
 		}
 		return '#'; // fallback (wall)
+	}
+
+	void setTile(int r, int c, char val) {
+		if (inBounds(r, c)) {
+			grid[r][c] = val;
+		}
+	}
+
+	//enemy helpers
+	void addEnemy(int r, int c, Enemy e) {
+		enemies[{r, c}] = e;
+	}
+	bool hasEnemy(int r, int c) {
+		return enemies.count({ r,c });
+	}
+	Enemy getEnemy(int r, int c) {
+		return enemies[{r, c}];
+	}
+	void removeEnemy(int r, int c) {
+		enemies.erase({ r,c });
+	}
+
+	//health
+	void addHealthPotion(int r, int c, int val) {
+		healthPotions[{r, c}] = val;
+	}
+	int getHealthPotion(int r, int c) {
+		return healthPotions[{r, c}];
+	}
+	bool hasHealthPotion(int r, int c) {
+		return healthPotions.count({ r,c });
+	}
+
+	//strength
+	void addStrengthPotion(int r, int c, int val) {
+		strengthPotions[{r, c}] = val;
+	}
+	int getStrengthPotion(int r, int c) {
+		return strengthPotions[{r, c}];
+	}
+	bool hasStrengthPotion(int r, int c) {
+		return strengthPotions.count({ r,c });
+	}
+
+	//defense
+	void addDefensePotion(int r, int c, int val) {
+		defensePotions[{r, c}] = val;
+	}
+	int getDefensePotion(int r, int c) {
+		return defensePotions[{r, c}];
+	}
+	bool hasDefensePotion(int r, int c) {
+		return defensePotions.count({ r,c });
 	}
 
 	void findStart(Player& player) { //player will always start on the @
@@ -271,18 +341,11 @@ public:
 		char tile = grid[newRow][newCol];
 
 
+
 		if (tile == '#') {
 			cout << "\nYou've hit a wall!\n";
 			return false;
 		}
-
-		/* if (tile == 'K') {
-			cout << "\nYou've found a key!\n";
-			player.addKey();
-			grid[newRow][newCol] = '.'; //replaces item with empty space or .
-			cout << "\n";
-			player.printStats();
-		} */
 
 		if (tile == 'r') {
 			cout << "Found RED key!\n";
@@ -318,33 +381,35 @@ public:
 			}
 		}
 
-		/* if (tile == 'D') { //door
-			if (player.useKey()) {
-				cout << "\nYou've unlocked the door!\n";
-				grid[newRow][newCol] = '.';
-				cout << "\n";
-				player.printStats();
-			}
-			else {
-				cout << "\nYou need a key.\n";
-				return false;
-			}
-		} */
-
 		if (tile == 'H') {
 			cout << "\nYou've found a health potion!\n";
-			int heal = 5 + rand() % 11;
+			int heal;
+
+			if (hasHealthPotion(newRow, newCol)) {
+				heal = getHealthPotion(newRow, newCol);
+			}
+			else {
+				heal = 5 + rand() % 11;
+			}
+
 			player.addHealth(heal);
 			cout << "Healed for " << heal << endl;
 			grid[newRow][newCol] = '.';
 			cout << "\n";
 			player.printStats();
-			//cout << "Your new health is: " << player.getHealth();
 		}
 
 		if (tile == 'S') {
 			cout << "\nYou've found a strength potion!\n";
-			int strength = 5 + rand() % 11;
+			int strength;
+
+			if (hasStrengthPotion(newRow, newCol)) {
+				strength = getStrengthPotion(newRow, newCol);
+			}
+			else {
+				strength = 5 + rand() % 11;
+			}
+
 			player.addStrength(strength);
 			cout << "Strength added: " << strength << endl;
 			grid[newRow][newCol] = '.';
@@ -354,7 +419,15 @@ public:
 
 		if (tile == 'F') {
 			cout << "\nYou've found a defense potion!\n";
-			int defense = 5 + rand() % 11;
+			int defense;
+
+			if (hasDefensePotion(newRow, newCol)) {
+				defense = getDefensePotion(newRow, newCol);
+			}
+			else {
+				defense = 5 + rand() % 11;
+			}
+
 			player.addDefense(defense);
 			cout << "Added defense: " << defense << endl;
 			grid[newRow][newCol] = '.';
@@ -386,7 +459,13 @@ public:
 		if (tile == 'E') {
 			cout << "\nAn enemy appeared! Your fight will now begin!\n";
 
-			Enemy enemy(50 + rand() % 20, 10 + rand() % 5, 5 + rand() % 5);
+			Enemy enemy(0, 0, 0);
+			if (hasEnemy(newRow, newCol)) {
+				enemy = getEnemy(newRow, newCol);
+			 }
+			else {
+				enemy = Enemy (50 + rand() % 20, 10 + rand() % 5, 5 + rand() % 5);
+			}
 
 			//fight 
 			while (player.isAlive() && enemy.isAlive()) {
@@ -420,6 +499,7 @@ public:
 
 			cout << "\nYou defeated the enemy! You may move on.\n";
 
+			removeEnemy(newRow, newCol);
 			grid[newRow][newCol] = '.';
 		}
 		
@@ -460,15 +540,90 @@ public:
 
 };
 
+class Inspector {
+public:
+	static void inspectTile(Dungeon& dungeon, int r, int c) {
+		char tile = dungeon.getTile(r, c);
+
+		cout << "\n--- INSPECT ---\n";
+
+		if (tile == 'E') {
+			if (dungeon.hasEnemy(r, c)) {
+				Enemy e = dungeon.getEnemy(r, c);
+				cout << "Enemy:\n";
+				cout << "HP: " << e.getHealth() << endl;
+				cout << "Strength: " << e.getStrength() << endl;
+				cout << "Defense: " << e.getDefense() << endl;
+			}
+			else {
+				cout << "Enemy (random stats)\n";
+			}
+		}
+		else if (tile == 'H') {
+			cout << "Health Potion:" << dungeon.getHealthPotion(r, c) << endl;
+		}
+		else if (tile == '#') {
+			cout << "Wall: cannot pass.\n";
+		}
+		else if (tile == '.') {
+			cout << "Empty space.\n";
+		}
+		else if (tile == 'r') {
+			cout << "Red key\n";
+		}
+		else if (tile == 'R') {
+			cout << "Red door: needs red key.\n";
+		}
+		else if (tile == 'b') {
+			cout << "Blue key\n";
+		}
+		else if (tile == 'B') {
+			cout << "Blue door: needs blue key.\n";
+		}
+		else if (tile == 'S') {
+			cout << "Strength Potion: " << dungeon.getStrengthPotion(r, c) << endl;
+		}
+		else if (tile == 'F') {
+			cout << "Defense Potion: " << dungeon.getDefensePotion(r, c) << endl;
+		}
+		else if (tile == 'L') {
+			cout << "Lava: deals 5 damage.\n";
+		}
+		else if (tile == 'T') {
+			cout << "Spikes: deal 3 damage.\n";
+		}
+		else if (tile == 'P') {
+			cout << "Poison: deals 2 damage.\n";
+		}
+		else if (tile == 'G') {
+			cout << "Goal: reach this to win.\n";
+		}
+		else if (tile == '@') {
+			cout << "Player start position.\n";
+		}
+		else {
+			cout << "Unknown tile.\n";
+		}
+		
+	}
+};
+
 class Game {
 private:
-	vector<vector<string>> dungeons;
+	//vector<vector<string>> dungeons;
+	vector<Dungeon> dungeons;
 	vector<string> dungeonNames;
+	map<string, int> potions; //stores potion vals and types
 
 public:
 	
 	Game() {
-		dungeons = Dungeon::getPreDungeon();
+		vector<vector<string>> pre = Dungeon::getPreDungeon();
+
+		for (int i = 0; i < pre.size(); i++) {
+			dungeons.push_back(Dungeon(pre[i]));
+		}
+
 		dungeonNames.push_back("Level 1");
 		dungeonNames.push_back("Level 2");
 	}
@@ -480,6 +635,8 @@ public:
 			cout << "@ = Player\n";
 			cout << "r = Red key\n";
 			cout << "R = Red door\n";
+			cout << "b = Blue key\n";
+			cout << "B = Blue door\n";
 			cout << "L = Lava\n";
 			cout << "T = Spikes\n";
 			cout << "P = Poison\n";
@@ -502,8 +659,15 @@ public:
 
 		int mode;
 		cin >> mode;
+		while (!(cin >> mode) || (mode != 1 && mode != 2)) {
+			cout << "Invalid choice. Enter 1 or 2: ";
+			cin.clear();
+			cin.ignore(10000, '\n');
+		}
 
 		vector<string> newGrid;
+		Dungeon newDungeon(vector<string>{});
+
 		bool editingExisting = false;
 		int editIndex = -1;
 
@@ -512,16 +676,34 @@ public:
 			for (int i = 0; i < dungeonNames.size(); i++) {
 				cout << i + 1 << ") " << dungeonNames[i] << endl;
 			}
+			
+			//takes in name or num for edit esxisting
+			string input;
+			cin >> input;
 
-			int choice;
-			cin >> choice;
+			int choice = -1;
 
-			if (choice < 1 || choice > dungeons.size()) {
+			if (isdigit(input[0])) {
+				choice = stoi(input) - 1;
+			}
+			else {
+				
+				for (int i = 0; i < dungeonNames.size(); i++) {
+					if (input == dungeonNames[i]) {
+						choice = i;
+						break;
+					}
+				}
+			}
+
+			if (choice < 0 || choice >= dungeons.size()) {
 				cout << "Invalid choice.\n";
 				return;
 			}
 
-			newGrid = dungeons[choice - 1];
+			newDungeon = dungeons[choice];
+			newGrid = newDungeon.getGrid();
+
 			rows = newGrid.size();
 			cols = newGrid[0].size();
 
@@ -536,21 +718,21 @@ public:
 
 			cout << "Enter rows (1-10): \n";
 			while (!(cin >> rows) || rows < 1 || rows > 10) {
-				cout << "Invalid. Enter 1-10: ";
+				cout << "Enter 1-10: ";
 				cin.clear();
 				cin.ignore(10000, '\n');
 			}
 
 			cout << "Enter columns (1-10): \n";
 			while (!(cin >> cols) || cols < 1 || cols > 10) {
-				cout << "Invalid. Enter 1-10: ";
+				cout << "Enter 1-10: ";
 				cin.clear();
 				cin.ignore(10000, '\n');
 			}
 			newGrid = vector<string>(rows, string(cols, '.'));
+			newDungeon = Dungeon(newGrid);
 		}
 
-		//vector<string> newGrid(rows, string(cols, '.'));
 
 		bool editing = true;
 
@@ -566,13 +748,15 @@ public:
 
 			printLegend();
 
-			cout << "\n1. Place object.\n";
-			cout << "2. Save current dungeon. \n";
+			cout << "\n1.Place object.\n";
+			cout << "2.Save current dungeon. \n";
+			cout << "3.Inspect \n";
+			cout << "4.Quit.\n";
 			cout << "Your choice: \n";
 
 			int choice;
-			while (!(cin >> choice) || (choice != 1 && choice != 2)) {
-				cout << "Invalid choice. Enter 1 or 2: ";
+			while (!(cin >> choice) || (choice != 1 && choice != 2 && choice != 3 && choice != 4)) {
+				cout << "Invalid choice. Enter 1-4: ";
 				cin.clear();
 				cin.ignore(10000, '\n');
 			}
@@ -615,11 +799,50 @@ public:
 				}
 
 				newGrid[r][c] = obj;
+				newDungeon.setTile(r, c, obj);
+
+				if (obj == 'E') {
+					int h, s, d;
+					
+					cout << "Enter Enemy's health: ";
+					cin >> h;
+
+					cout << "Enter Enemy's strength: ";
+					cin >> s;
+
+					cout << "Enter Enemy's defense: ";
+					cin >> d;
+					cout << "\n";
+
+					newDungeon.addEnemy(r, c, Enemy(h, s, d));
+				}
+
+				if (obj == 'H') {
+					int val;
+					cout << "Enter health potion value: ";
+					cin >> val;
+					newDungeon.addHealthPotion(r, c, val);
+				}
+
+				if (obj == 'S') {
+					int val;
+					cout << "Enter strength potion value: ";
+					cin >> val;
+					newDungeon.addStrengthPotion(r, c, val);
+				}
+
+				if (obj == 'F') {
+					int val;
+					cout << "Enter defense potion value: ";
+					cin >> val;
+					newDungeon.addDefensePotion(r, c, val);
+				}
+
 			}
 			else if (choice == 2) {
 
 				if (editingExisting) {
-					dungeons[editIndex] = newGrid;
+					dungeons[editIndex] = newDungeon;
 					cout << "Dungeon updated!\n";
 				}
 				else {
@@ -627,13 +850,42 @@ public:
 					cout << "Enter dungeon name: ";
 					cin >> name;
 
-					dungeons.push_back(newGrid);
+
+					//dungeon w same name updates
+					for (int i = 0; i < dungeonNames.size(); i++) {
+						if (dungeonNames[i] == name) {
+							dungeons[i] = newDungeon;
+							cout << "Dungeon updated!\n";
+							return;
+						}
+					}
+
+					dungeons.push_back(newDungeon);
 					dungeonNames.push_back(name);
 
 					cout << "Dungeon saved!\n";
 				}
 
 				editing = false;
+			}
+			else if (choice == 3) {
+				int r, c;
+
+				cout << "Enter row: ";
+				cin >> r;
+
+				cout << "Enter col: ";
+				cin >> c;
+
+				if (r < 0 || r >= rows || c < 0 || c >= cols) {
+					cout << "Invalid position.\n";
+					continue;
+				}
+
+				Inspector::inspectTile(newDungeon, r, c);
+			}
+			else if (choice == 4) {
+				break;
 			}
 			else {
 				cout << "Invalid choice.\n";
@@ -732,63 +984,8 @@ public:
 						cout << "Enter row and col seperated by space: ";
 						cin >> r >> c;
 
-						char tile = dungeon.getTile(r, c);
+						Inspector::inspectTile(dungeon, r, c);
 
-						cout << "\n--- INSPECT ---\n";
-
-						if (tile == '#') {
-							cout << "Wall: cannot pass.\n";
-						}
-						else if (tile == '.') {
-							cout << "Empty space.\n";
-						}
-						else if (tile == 'r') {
-							cout << "Red key\n";
-						}
-						else if (tile == 'R') {
-							cout << "Red door: needs red key.\n";
-						}
-						else if (tile == 'b') {
-							cout << "Blue key\n";
-						}
-						else if (tile == 'B') {
-							cout << "Blue door: needs blue key.\n";
-						}
-						else if (tile == 'H') {
-							cout << "Health Potion: restores health.\n";
-						}
-						else if (tile == 'S') {
-							cout << "Strength Potion: increases strength.\n";
-						}
-						else if (tile == 'F') {
-							cout << "Defense Potion: increases defense.\n";
-						}
-						else if (tile == 'L') {
-							cout << "Lava: deals 5 damage.\n";
-						}
-						else if (tile == 'T') {
-							cout << "Spikes: deal 3 damage.\n";
-						}
-						else if (tile == 'P') {
-							cout << "Poison: deals 2 damage.\n";
-						}
-						else if (tile == 'E') {
-							cout << "Enemy:\n";
-							cout << "HP: 50-70\n";
-							cout << "Strength: 10-15\n";
-							cout << "Defense: 5-10\n";
-						}
-						else if (tile == 'G') {
-							cout << "Goal: reach this to win.\n";
-						}
-						else if (tile == '@') {
-							cout << "Player start position.\n";
-						}
-						else {
-							cout << "Unknown tile.\n";
-						}
-
-						cout << "---------------\n";
 						continue;
 					}
 					else {
