@@ -658,7 +658,7 @@ public:
 		
 
 		int mode;
-		cin >> mode;
+		//cin >> mode;
 		while (!(cin >> mode) || (mode != 1 && mode != 2)) {
 			cout << "Invalid choice. Enter 1 or 2: ";
 			cin.clear();
@@ -707,7 +707,7 @@ public:
 			rows = newGrid.size();
 			cols = newGrid[0].size();
 
-			editIndex = choice - 1;
+			editIndex = choice;
 			editingExisting = true;
 		}
 		else {
