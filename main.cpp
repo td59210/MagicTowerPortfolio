@@ -4,6 +4,8 @@
 #include <cctype>
 #include <cstdlib>
 #include <map>
+#include <fstream>
+#include <sstream>
 
 
 using namespace std;
@@ -538,6 +540,162 @@ public:
 		return levels;
 	}
 
+	//save file 
+	bool saveToFile(string filename) {
+
+		//add .dun if user forgets
+		if (filename.find(".dun") == string::npos) {
+			filename += ".dun";
+		}
+
+		ofstream fout(filename);
+
+		if (!fout) {
+			cout << "Error creating file.\n";
+			return false;
+		}
+
+		//first line = rows cols
+		fout << rows << " " << cols << endl;
+
+		//grid
+		for (string row : grid) {
+			fout << row << endl;
+		}
+
+		//enemies
+		for (auto e : enemies) {
+			int r = e.first.first;
+			int c = e.first.second;
+
+			fout << "ENEMY "
+				<< r << " "
+				<< c << " "
+				<< e.second.getHealth() << " "
+				<< e.second.getStrength() << " "
+				<< e.second.getDefense()
+				<< endl;
+		}
+
+		//potions
+		for (auto h : healthPotions) {
+			fout << "HEALTH "
+				<< h.first.first << " "
+				<< h.first.second << " "
+				<< h.second
+				<< endl;
+		}
+
+		for (auto s : strengthPotions) {
+			fout << "STRENGTH "
+				<< s.first.first << " "
+				<< s.first.second << " "
+				<< s.second
+				<< endl;
+		}
+
+		for (auto d : defensePotions) {
+			fout << "DEFENSE "
+				<< d.first.first << " "
+				<< d.first.second << " "
+				<< d.second
+				<< endl;
+		}
+
+		fout.close();
+
+		return true;
+	}
+
+	//load function
+	static Dungeon loadFromFile(string filename) {
+
+		if (filename.find(".dun") == string::npos) {
+			filename += ".dun";
+		}
+
+		ifstream fin(filename);
+
+		if (!fin) {
+			throw runtime_error("File does not exist.");
+		}
+
+		int rows, cols;
+
+		fin >> rows >> cols;
+		fin.ignore();
+
+		if (rows <= 0 || cols <= 0) {
+			throw runtime_error("Invalid dungeon size.");
+		}
+
+		vector<string> levelGrid;
+
+		for (int i = 0; i < rows; i++) {
+
+			string line;
+			getline(fin, line);
+
+			if (line.size() != cols) {
+				throw runtime_error("Improper dungeon format.");
+			}
+
+			levelGrid.push_back(line);
+		}
+
+		Dungeon dungeon(levelGrid);
+
+		string line;
+
+		while (getline(fin, line)) {
+
+			stringstream ss(line);
+
+			string type;
+			ss >> type;
+
+			if (type == "ENEMY") {
+
+				int r, c, h, s, d;
+
+				ss >> r >> c >> h >> s >> d;
+
+				dungeon.addEnemy(r, c, Enemy(h, s, d));
+			}
+
+			else if (type == "HEALTH") {
+
+				int r, c, val;
+
+				ss >> r >> c >> val;
+
+				dungeon.addHealthPotion(r, c, val);
+			}
+
+			else if (type == "STRENGTH") {
+
+				int r, c, val;
+
+				ss >> r >> c >> val;
+
+				dungeon.addStrengthPotion(r, c, val);
+			}
+
+			else if (type == "DEFENSE") {
+
+				int r, c, val;
+
+				ss >> r >> c >> val;
+
+				dungeon.addDefensePotion(r, c, val);
+			}
+		}
+
+		fin.close();
+
+		return dungeon;
+	}
+
 };
 
 class Inspector {
@@ -673,42 +831,84 @@ public:
 
 		if (mode == 2 && !dungeons.empty()) {
 			cout << "\nChoose a dungeon to edit:\n";
+			cout << "0) Load from file\n";
+
 			for (int i = 0; i < dungeonNames.size(); i++) {
 				cout << i + 1 << ") " << dungeonNames[i] << endl;
 			}
-			
-			//takes in name or num for edit esxisting
+
+			//name or num
 			string input;
 			cin >> input;
 
-			int choice = -1;
+			//laod from file
+			if (input == "0") {
 
-			if (isdigit(input[0])) {
-				choice = stoi(input) - 1;
-			}
-			else {
-				
-				for (int i = 0; i < dungeonNames.size(); i++) {
-					if (input == dungeonNames[i]) {
-						choice = i;
-						break;
-					}
+				string filename;
+
+				cout << "Enter filename: ";
+				cin >> filename;
+
+				try {
+
+					newDungeon = Dungeon::loadFromFile(filename);
+
+					newGrid = newDungeon.getGrid();
+
+					rows = newGrid.size();
+					cols = newGrid[0].size();
+
+					editingExisting = false;
+
+					cout << "Dungeon loaded successfully!\n";
+				}
+
+				catch (exception& e) {
+
+					cout << "Error: " << e.what() << endl;
+					return;
 				}
 			}
 
-			if (choice < 0 || choice >= dungeons.size()) {
-				cout << "Invalid choice.\n";
-				return;
+			//reg selection
+			else {
+
+				int choice = -1;
+
+				//num input
+				if (isdigit(input[0])) {
+					choice = stoi(input) - 1;
+				}
+
+				//name
+				else {
+
+					for (int i = 0; i < dungeonNames.size(); i++) {
+
+						if (input == dungeonNames[i]) {
+							choice = i;
+							break;
+						}
+					}
+				}
+
+				if (choice < 0 || choice >= dungeons.size()) {
+
+					cout << "Invalid choice.\n";
+					return;
+				}
+
+				newDungeon = dungeons[choice];
+
+				newGrid = newDungeon.getGrid();
+
+				rows = newGrid.size();
+				cols = newGrid[0].size();
+
+				editIndex = choice;
+
+				editingExisting = true;
 			}
-
-			newDungeon = dungeons[choice];
-			newGrid = newDungeon.getGrid();
-
-			rows = newGrid.size();
-			cols = newGrid[0].size();
-
-			editIndex = choice;
-			editingExisting = true;
 		}
 		else {
 
@@ -856,7 +1056,9 @@ public:
 						if (dungeonNames[i] == name) {
 							dungeons[i] = newDungeon;
 							cout << "Dungeon updated!\n";
-							return;
+							
+							editingExisting = true;
+							break;
 						}
 					}
 
@@ -864,6 +1066,24 @@ public:
 					dungeonNames.push_back(name);
 
 					cout << "Dungeon saved!\n";
+				}
+
+				//save to file option
+				cout << "Would you like to save to file? (y/n): ";
+
+				char saveFile;
+				cin >> saveFile;
+
+				if (tolower(saveFile) == 'y') {
+
+					string filename;
+
+					cout << "Enter filename: ";
+					cin >> filename;
+
+					if (newDungeon.saveToFile(filename)) {
+						cout << "Dungeon saved to file!\n";
+					}
 				}
 
 				editing = false;
@@ -912,25 +1132,104 @@ public:
 			if (choice == "1" || choice == "enter" || choice == "one") {
 
 				cout << "\nChoose a dungeon:\n";
+
+				cout << "0) Load a dungeon from file\n";
+
 				for (int i = 0; i < dungeons.size() && i < dungeonNames.size(); i++) {
 					cout << i + 1 << ") " << dungeonNames[i] << endl;
 				}
 
 				string selection;
 				cin >> selection;
-				
+
+				//from file
+				if (selection == "0") {
+
+					while (true) {
+
+						string filename;
+
+						cout << "Enter filename: ";
+						cin >> filename;
+
+						try {
+
+							Dungeon dungeon = Dungeon::loadFromFile(filename);
+
+							Player player;
+
+							dungeon.findStart(player);
+
+							printLegend();
+
+							bool gameOver = false;
+
+							while (!gameOver && player.isAlive()) {
+
+								dungeon.print(player);
+
+								string move;
+
+								cout << "\nMove (W/A/S/D): ";
+								cin >> move;
+
+								char dir;
+
+								for (char& c : move) {
+									c = tolower(c);
+								}
+
+								if (move == "up" || move == "w") {
+									dir = 'U';
+								}
+								else if (move == "down" || move == "s") {
+									dir = 'D';
+								}
+								else if (move == "left" || move == "a") {
+									dir = 'L';
+								}
+								else if (move == "right" || move == "d") {
+									dir = 'R';
+								}
+								else if (move == "quit" || move == "q") {
+									cout << "Exiting dungeon...\n";
+									break;
+								}
+								else {
+									cout << "Invalid move.\n";
+									continue;
+								}
+
+								gameOver = dungeon.movePlayer(player, dir);
+							}
+
+							break; 
+						}
+
+						catch (exception& e) {
+
+							cout << "Error: " << e.what() << endl;
+							cout << "Try again.\n";
+						}
+					}
+
+					continue;
+				}
+
 				int input = -1;
 
-				//dungeon name check
+				//name
 				for (int i = 0; i < dungeonNames.size(); i++) {
+
 					if (selection == dungeonNames[i]) {
 						input = i;
 						break;
 					}
 				}
 
-				//number check
+				//num
 				for (int i = 0; i < dungeons.size(); i++) {
+
 					if (selection == to_string(i + 1)) {
 						input = i;
 						break;
@@ -938,14 +1237,17 @@ public:
 				}
 
 				if (input == -1) {
+
 					cout << "Invalid selection.\n";
 					continue;
 				}
 
 				Player player;
+
 				Dungeon dungeon(dungeons[input]);
 
 				dungeon.findStart(player);
+
 				printLegend();
 
 				bool gameOver = false;
